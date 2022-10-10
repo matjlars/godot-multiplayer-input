@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://c4qrt5dwy6da8"]
+
+[ext_resource type="Script" path="res://demo/demo.gd" id="1_bese3"]
+[ext_resource type="Script" path="res://demo/player_manager.gd" id="1_u0i6m"]
+
+[node name="Demo" type="Node"]
+script = ExtResource("1_bese3")
+
+[node name="PlayerManager" type="Node" parent="."]
+script = ExtResource("1_u0i6m")
+
+[node name="HUD" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Instructions" type="Label" parent="HUD"]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 22.0
+offset_right = 508.0
+offset_bottom = 100.0
+text = "MultiplayerInput demo
+Press the spacebar or the bottom face button to join and leave.
+Once joined, use WASD or the left joystick to move around."
