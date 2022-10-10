@@ -85,3 +85,16 @@ func _input(event):
     if !input.is_keyboard(): return
     # in this context, you know this is a keyboard/mouse player, so you can read mouse input here and do stuff
 ```
+
+## What about other Input functions?
+You can still use all the normal Input functions, but there are a couple things to keep in mind.
+
+None of the functions with "action" in their name will work as you expect, so use MultiplayerInput for those instead.
+This is because behind the scenes, in duplicates the actions and assigns them a different name in this format: "%s%s" % [device, action]
+
+Any of the Input functions that accept a device integer parameter will work with the same device integers that MultiplayerInput functions use, with one exception.
+The keyboard player is device -1.
+That -1 is specific to MultiplayerInput though.
+It will not work if you pass a -1 into any of the Input functions as a device integer.
+Behind the scenes, a -1 will tell MultiplayerInput to use the set of actions that you set up in the editor, as opposed to any of the replicated, device-specific ones.
+That essentially just means use the keyboard/mouse actions.
