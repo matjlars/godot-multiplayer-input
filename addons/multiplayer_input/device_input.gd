@@ -3,6 +3,7 @@ class_name DeviceInput
 
 # this is an optional helper class that just wraps the calls to MultiplayerInput
 # so you can use this to keep track of the device and then you don't have to pass that around
+# 
 # the following is a simple example of how to use this class
 #
 # var input

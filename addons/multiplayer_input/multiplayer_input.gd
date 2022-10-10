@@ -4,20 +4,6 @@ extends Node
 # device of (-1) means the keyboard player
 # when a device connects, actions are created for that device
 # these dynamically created action names start with the device number
-#
-# this is an example of how to allow players to join in your PlayerManager
-#
-# signal player_joined(device)
-# func is_device_joined(device: int) -> bool:
-#     pass # implement this for your game. return true if there are any players with this device.
-# func unjoined_devices():
-#     var valid_devices = Input.get_connected_joypads()
-#     valid_devices.append(-1) # also consider the keyboard player (device -1 for MultiplayerInput functions)
-#     return valid_devices.filter(func(device): return is_device_joined(device))
-# func _process(_delta):
-#     for device in unjoined_devices():
-#         if MultiplayerInput.is_action_just_pressed(device, "join"):
-#             player_joined.emit(device)
 
 # an array of all the non-duplicated action names
 var core_actions = []
