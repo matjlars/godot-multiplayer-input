@@ -1,4 +1,4 @@
-# godot-multiplayer-input
+# MultiplayerInput
 This Godot addon provides two simple APIs for using normal Input Actions, but spread out across a Keyboard player and up to 8 Joypad players.
 
 
