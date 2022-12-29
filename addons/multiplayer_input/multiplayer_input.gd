@@ -1,11 +1,18 @@
 extends Node
+## A globally accessible manager for device-specific actions.
+##
+## This class automatically duplicates relevant events on all actions for new joypads
+## when they connect and disconnect.
+## It also provides a nice API to access all the normal "Input" methods,
+## but using the device integers and the same action names.
+## All methods in this class that have a "device" parameter can accept -1
+## which means the keyboard device.
+## NOTE: The -1 device will not work on Input methods because it is a specific
+## concept to this MultiplayerInput class.
+##
+## See DeviceInput for an object-oriented way to get input for a single device.
 
-# This is an autoloaded class that can be accessed at MultiplayerInput
-# device of (-1) means the keyboard player
-# when a device connects, actions are created for that device
-# these dynamically created action names start with the device number
-
-# an array of all the non-duplicated action names
+## An array of all the non-duplicated action names
 var core_actions = []
 
 # a dictionary of all action names
@@ -84,7 +91,7 @@ func _delete_actions_for_device(device: int):
 		var action_str = String(action)
 		var maybe_device = action_str.substr(0, device_num_str.length())
 		if maybe_device == device_num_str:
-			actions_to_erase = action
+			actions_to_erase.append(action)
 	
 	# now actually erase them
 	# this is done separately so I'm not erasing from the collection I'm looping on
@@ -138,6 +145,7 @@ func is_action_pressed(device: int, action: StringName, exact_match: bool = fals
 # returns the name of a gamepad-specific action
 func get_action_name(device: int, action: StringName) -> StringName:
 	if device >= 0:
+		assert(device_actions.has(device), "Device %s has no actions. Maybe the joypad is disconnected." % device)
 		# if it says this dictionary doesn't have the key,
 		# that could mean it's an invalid action name.
 		# or it could mean that action doesn't have a joypad event assigned
