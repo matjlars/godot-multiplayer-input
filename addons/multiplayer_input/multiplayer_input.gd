@@ -23,6 +23,9 @@ var core_actions = []
 # ... so it doesn't need to generate them every time
 var device_actions = {}
 
+## Array of GUIDs - If a device with an ignored GUID is detected, no input actions will be added.
+var ignored_guids = []
+
 func _init():
 	reset()
 
@@ -30,7 +33,7 @@ func _init():
 func reset():
 	InputMap.load_from_project_settings()
 	core_actions = InputMap.get_actions()
-	
+
 	# disable joypad events on keyboard actions
 	# by setting device id to 8 (out of range, so they'll never trigger)
 	# I can't just delete them because they're used as blueprints
@@ -40,11 +43,11 @@ func reset():
 		for e in InputMap.action_get_events(action):
 			if _is_joypad_event(e) and !is_ui_action(action):
 				e.device = 8
-	
+
 	# create actions for already connected gamepads
 	for device in Input.get_connected_joypads():
 		_create_actions_for_device(device)
-	
+
 	# create actions for gamepads that connect in the future
 	# also clean up when gamepads disconnect
 	if !Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
@@ -57,20 +60,24 @@ func _on_joy_connection_changed(device: int, connected: bool):
 		_delete_actions_for_device(device)
 
 func _create_actions_for_device(device: int):
+	# skip action creation if the device should be ignored
+	if Input.get_joy_guid(device) in ignored_guids:
+		return
+
 	device_actions[device] = {}
 	for core_action in core_actions:
 		var new_action = "%s%s" % [device, core_action]
 		var deadzone = InputMap.action_get_deadzone(core_action)
-		
+
 		# get all joypad events for this action
 		var events = InputMap.action_get_events(core_action).filter(_is_joypad_event)
-		
+
 		# only copy this event if it is relevant to joypads
 		if events.size() > 0:
 			# first add the action with the new name
 			InputMap.add_action(new_action, deadzone)
 			device_actions[device][core_action] = new_action
-			
+
 			# then copy all the events associated with that action
 			# this only includes events that are relevant to joypads
 			for event in events:
@@ -78,7 +85,7 @@ func _create_actions_for_device(device: int):
 				# which doesn't work because this has to be unique to this device
 				var new_event = event.duplicate()
 				new_event.device = device
-				
+
 				# switch the device to be just this joypad
 				InputMap.action_add_event(new_action, new_event)
 
@@ -86,14 +93,14 @@ func _delete_actions_for_device(device: int):
 	device_actions.erase(device)
 	var actions_to_erase = []
 	var device_num_str = str(device)
-	
+
 	# figure out which actions should be erased
 	for action in InputMap.get_actions():
 		var action_str = String(action)
 		var maybe_device = action_str.substr(0, device_num_str.length())
 		if maybe_device == device_num_str:
 			actions_to_erase.append(action)
-	
+
 	# now actually erase them
 	# this is done separately so I'm not erasing from the collection I'm looping on
 	# not sure if this is necessary but whatever, this is safe
@@ -158,7 +165,7 @@ func get_action_name(device: int, action: StringName) -> StringName:
 		# that could mean it's an invalid action name.
 		# or it could mean that action doesn't have a joypad event assigned
 		return device_actions[device][action]
-	
+
 	# return the normal action name for the keyboard player
 	return action
 
