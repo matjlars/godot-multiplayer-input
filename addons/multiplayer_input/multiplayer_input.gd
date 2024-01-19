@@ -29,7 +29,7 @@ var ignored_guids = []
 func _init():
 	reset()
 
-# call this if you change any of the core actions or need to reset everything
+# Call this if you change any of the core actions or need to reset everything.
 func reset():
 	InputMap.load_from_project_settings()
 	core_actions = InputMap.get_actions()
@@ -38,9 +38,10 @@ func reset():
 	# by setting device id to 8 (out of range, so they'll never trigger)
 	# I can't just delete them because they're used as blueprints
 	# ... when a joypad connects
+	# This skips UI actions so it doesn't mess them up.
 	for action in core_actions:
 		for e in InputMap.action_get_events(action):
-			if _is_joypad_event(e):
+			if _is_joypad_event(e) and !is_ui_action(action):
 				e.device = 8
 
 	# create actions for already connected gamepads
@@ -110,22 +111,26 @@ func _delete_actions_for_device(device: int):
 
 # use these functions to query the action states just like normal Input functions
 
+## This is equivalent to Input.get_action_raw_strength except it will only check the relevant device.
 func get_action_raw_strength(device: int, action: StringName, exact_match: bool = false) -> float:
 	if device >= 0:
 		action = get_action_name(device, action)
 	return Input.get_action_raw_strength(action, exact_match)
 
+## This is equivalent to Input.get_action_strength except it will only check the relevant device.
 func get_action_strength(device: int, action: StringName, exact_match: bool = false) -> float:
 	if device >= 0:
 		action = get_action_name(device, action)
 	return Input.get_action_strength(action, exact_match)
 
+## This is equivalent to Input.get_axis except it will only check the relevant device.
 func get_axis(device: int, negative_action: StringName, positive_action: StringName) -> float:
 	if device >= 0:
 		negative_action = get_action_name(device, negative_action)
 		positive_action = get_action_name(device, positive_action)
 	return Input.get_axis(negative_action, positive_action)
 
+## This is equivalent to Input.get_vector except it will only check the relevant device.
 func get_vector(device: int, negative_x: StringName, positive_x: StringName, negative_y: StringName, positive_y: StringName, deadzone: float = -1.0) -> Vector2:
 	if device >= 0:
 		negative_x = get_action_name(device, negative_x)
@@ -134,22 +139,25 @@ func get_vector(device: int, negative_x: StringName, positive_x: StringName, neg
 		positive_y = get_action_name(device, positive_y)
 	return Input.get_vector(negative_x, positive_x, negative_y, positive_y, deadzone)
 
+## This is equivalent to Input.is_action_just_pressed except it will only check the relevant device.
 func is_action_just_pressed(device: int, action: StringName, exact_match: bool = false) -> bool:
 	if device >= 0:
 		action = get_action_name(device, action)
 	return Input.is_action_just_pressed(action, exact_match)
 
+## This is equivalent to Input.is_action_just_released except it will only check the relevant device.
 func is_action_just_released(device: int, action: StringName, exact_match: bool = false) -> bool:
 	if device >= 0:
 		action = get_action_name(device, action)
 	return Input.is_action_just_released(action, exact_match)
 
+## This is equivalent to Input.is_action_pressed except it will only check the relevant device.
 func is_action_pressed(device: int, action: StringName, exact_match: bool = false) -> bool:
 	if device >= 0:
 		action = get_action_name(device, action)
 	return Input.is_action_pressed(action, exact_match)
 
-# returns the name of a gamepad-specific action
+## Returns the name of a gamepad-specific action
 func get_action_name(device: int, action: StringName) -> StringName:
 	if device >= 0:
 		assert(device_actions.has(device), "Device %s has no actions. Maybe the joypad is disconnected." % device)
@@ -161,5 +169,46 @@ func get_action_name(device: int, action: StringName) -> StringName:
 	# return the normal action name for the keyboard player
 	return action
 
+## Restricts actions that start with "ui_" to only work on a single device.
+## Pass a -2 to reset it back to default behavior, to allow all devices to trigger "ui_" actions.
+## For example, pass a -1 if you want only the keyboard/mouse device to control menus.
+## NOTE: this calls reset(), so if you make any changes to the InputMap via code, you'll need to make them again.
+func set_ui_action_device(device: int):
+	# First, totally re-create the InputMap for all devices
+	# This is necessary because this function may have messed up the UI Actions
+	# ... on a previous call
+	reset()
+	
+	# We are back to default behavior.
+	# So if that's what the caller wants, we're done!
+	if device == -2: return
+	
+	# find all ui actions and erase irrelevant events
+	for action in InputMap.get_actions():
+		# ignore non-ui-actions
+		if !is_ui_action(action): break
+		
+		if device == -1:
+			# in this context, we want to erase all joypad events
+			for e in InputMap.action_get_events(action):
+				if _is_joypad_event(e):
+					InputMap.action_erase_event(action, e)
+		else:
+			# in this context, we want to delete all non-joypad events.
+			# and we also want to set the event's device to the given device.
+			for e in InputMap.action_get_events(action):
+				if _is_joypad_event(e):
+					e.device = device
+				else:
+					# this isn't event a joypad event, so erase it entirely
+					InputMap.action_erase_event(action, e)
+
+## Returns true if the given event is a joypad event.
 func _is_joypad_event(event: InputEvent) -> bool:
 	return event is InputEventJoypadButton or event is InputEventJoypadMotion
+
+## Returns true if this is a UI action.
+## Which basically just means it starts with "ui_".
+## But you can override this in your project if you want.
+func is_ui_action(action_name: StringName):
+	return action_name.begins_with("ui_")

@@ -110,6 +110,12 @@ func is_action_pressed(action: StringName, exact_match: bool = false) -> bool:
 	if !is_connected: return false
 	return MultiplayerInput.is_action_pressed(device, action, exact_match)
 
+## Takes exclusive control over all "ui_" actions.
+## See MultiplayerInput.set_ui_action_device() doc for more info.
+func take_ui_actions():
+	if !is_connected: return
+	MultiplayerInput.set_ui_action_device(device)
+
 ## Internal method that is called whenever any device is connected or disconnected.
 ## This is how this object keeps its "is_connected" property updated.
 func _on_joy_connection_changed(_device: int, connected: bool):
