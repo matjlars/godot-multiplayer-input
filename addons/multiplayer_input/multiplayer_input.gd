@@ -44,10 +44,6 @@ func reset():
 			if _is_joypad_event(e) and !is_ui_action(action):
 				e.device = 8
 
-	# create actions for already connected gamepads
-	for device in Input.get_connected_joypads():
-		_create_actions_for_device(device)
-
 	# create actions for gamepads that connect in the future
 	# also clean up when gamepads disconnect
 	if !Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
