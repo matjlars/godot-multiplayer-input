@@ -26,6 +26,12 @@ var device_actions = {}
 ## Array of GUIDs - If a device with an ignored GUID is detected, no input actions will be added.
 var ignored_guids = []
 
+## These signals are triggered when a device is connected, reconnected, or disconnected.
+## Nodes that use this Singleton should connect to these signals
+## and properly handle device disconnection to prevent get_action_name assertions from being triggered.
+signal device_connected(device: int)
+signal device_disconnected(device: int)
+
 func _init():
 	reset()
 
@@ -49,17 +55,28 @@ func reset():
 	if !Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
-func _on_joy_connection_changed(device: int, connected: bool):
+func _on_joy_connection_changed(device: int, connected: bool):	
 	if connected:
+		device_connected.emit(device)
 		_create_actions_for_device(device)
 	else:
+		device_disconnected.emit(device)
 		_delete_actions_for_device(device)
+
+func has_actions_for_device(device: int) -> bool:
+	# We only ever create an entry in device_actions when
+	# we run _create_actions_for_device, so presence in the dict
+	# is enough to know it’s been initialized.
+	return device_actions.has(device)
 
 func _create_actions_for_device(device: int):
 	# skip action creation if the device should be ignored
 	if Input.get_joy_guid(device) in ignored_guids:
 		return
-
+	
+	if has_actions_for_device(device):
+		return
+	
 	device_actions[device] = {}
 	for core_action in core_actions:
 		var new_action = "%s%s" % [device, core_action]
@@ -102,8 +119,6 @@ func _delete_actions_for_device(device: int):
 	# not sure if this is necessary but whatever, this is safe
 	for action in actions_to_erase:
 		InputMap.erase_action(action)
-
-
 
 # use these functions to query the action states just like normal Input functions
 
@@ -156,7 +171,7 @@ func is_action_pressed(device: int, action: StringName, exact_match: bool = fals
 ## Returns the name of a gamepad-specific action
 func get_action_name(device: int, action: StringName) -> StringName:
 	if device >= 0:
-		assert(device_actions.has(device), "Device %s has no actions. Maybe the joypad is disconnected." % device)
+		assert(has_actions_for_device(device), "Device %s has no actions. Maybe the joypad is disconnected." % device)
 		# if it says this dictionary doesn't have the key,
 		# that could mean it's an invalid action name.
 		# or it could mean that action doesn't have a joypad event assigned
