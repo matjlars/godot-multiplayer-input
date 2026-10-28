@@ -27,11 +27,15 @@ func _init(device_num: int):
 
 ## Returns true if this device is the keyboard/mouse "device"
 func is_keyboard() -> bool:
-	return device < 0
+	return MultiplayerInput.is_keyboard_device(device)
+
+## Returns true if this device is specifically a mouse.
+func is_mouse() -> bool:
+	return MultiplayerInput.is_mouse_device(device)
 
 ## Returns true if this device is a joypad.
 func is_joypad() -> bool:
-	return device >= 0
+	return MultiplayerInput.is_joypad_device(device)
 
 ## See Input.get_joy_guid() for what this returns.
 ## If this is the keyboard device, this returns "Keyboard"

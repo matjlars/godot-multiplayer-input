@@ -26,6 +26,30 @@ var device_actions = {}
 ## Array of GUIDs - If a device with an ignored GUID is detected, no input actions will be added.
 var ignored_guids = []
 
+## Out-of-range device ID used to disable joypad events on core keyboard actions.
+## In Godot 4.7+, joypads are 0..15, keyboards are 16..31, and mice are 32+.
+const DUMMY_DISABLED_DEVICE = 255
+
+## Set to true to strictly separate keyboard (16..31) and mouse (32+) into distinct devices.
+## Defaults to false, which treats keyboard and mouse as a unified "PC" player device (-1).
+const SEPARATE_KEYBOARD_AND_MOUSE: bool = false
+
+## Returns true if the device ID represents a joypad (0..15 in Godot 4.7+).
+func is_joypad_device(device: int) -> bool:
+	return device >= 0 and device < InputEvent.DEVICE_ID_KEYBOARD
+
+## Returns true if the device ID represents a mouse (32+ in Godot 4.7+).
+func is_mouse_device(device: int) -> bool:
+	return device >= InputEvent.DEVICE_ID_MOUSE
+
+## Returns true if the device ID represents keyboard.
+## - If SEPARATE_KEYBOARD_AND_MOUSE is false (default): also returns true for mouse and -1 (unified PC player).
+## - If SEPARATE_KEYBOARD_AND_MOUSE is true (strict mode): only matches -1 or the keyboard range (16..31).
+func is_keyboard_device(device: int) -> bool:
+	if SEPARATE_KEYBOARD_AND_MOUSE:
+		return device == -1 or (device >= InputEvent.DEVICE_ID_KEYBOARD and device < InputEvent.DEVICE_ID_MOUSE)
+	return device < 0 or device >= InputEvent.DEVICE_ID_KEYBOARD
+
 func _init():
 	reset()
 
@@ -35,14 +59,14 @@ func reset():
 	core_actions = InputMap.get_actions()
 
 	# disable joypad events on keyboard actions
-	# by setting device id to 8 (out of range, so they'll never trigger)
+	# by setting device id to DUMMY_DISABLED_DEVICE (out of range, so they'll never trigger)
 	# I can't just delete them because they're used as blueprints
 	# ... when a joypad connects
 	# This skips UI actions so it doesn't mess them up.
 	for action in core_actions:
 		for e in InputMap.action_get_events(action):
 			if _is_joypad_event(e) and !is_ui_action(action):
-				e.device = 8
+				e.device = DUMMY_DISABLED_DEVICE
 
 	# create actions for gamepads that connect in the future
 	# also clean up when gamepads disconnect
@@ -109,26 +133,26 @@ func _delete_actions_for_device(device: int):
 
 ## This is equivalent to Input.get_action_raw_strength except it will only check the relevant device.
 func get_action_raw_strength(device: int, action: StringName, exact_match: bool = false) -> float:
-	if device >= 0:
+	if is_joypad_device(device):
 		action = get_action_name(device, action)
 	return Input.get_action_raw_strength(action, exact_match)
 
 ## This is equivalent to Input.get_action_strength except it will only check the relevant device.
 func get_action_strength(device: int, action: StringName, exact_match: bool = false) -> float:
-	if device >= 0:
+	if is_joypad_device(device):
 		action = get_action_name(device, action)
 	return Input.get_action_strength(action, exact_match)
 
 ## This is equivalent to Input.get_axis except it will only check the relevant device.
 func get_axis(device: int, negative_action: StringName, positive_action: StringName) -> float:
-	if device >= 0:
+	if is_joypad_device(device):
 		negative_action = get_action_name(device, negative_action)
 		positive_action = get_action_name(device, positive_action)
 	return Input.get_axis(negative_action, positive_action)
 
 ## This is equivalent to Input.get_vector except it will only check the relevant device.
 func get_vector(device: int, negative_x: StringName, positive_x: StringName, negative_y: StringName, positive_y: StringName, deadzone: float = -1.0) -> Vector2:
-	if device >= 0:
+	if is_joypad_device(device):
 		negative_x = get_action_name(device, negative_x)
 		positive_x = get_action_name(device, positive_x)
 		negative_y = get_action_name(device, negative_y)
@@ -137,25 +161,25 @@ func get_vector(device: int, negative_x: StringName, positive_x: StringName, neg
 
 ## This is equivalent to Input.is_action_just_pressed except it will only check the relevant device.
 func is_action_just_pressed(device: int, action: StringName, exact_match: bool = false) -> bool:
-	if device >= 0:
+	if is_joypad_device(device):
 		action = get_action_name(device, action)
 	return Input.is_action_just_pressed(action, exact_match)
 
 ## This is equivalent to Input.is_action_just_released except it will only check the relevant device.
 func is_action_just_released(device: int, action: StringName, exact_match: bool = false) -> bool:
-	if device >= 0:
+	if is_joypad_device(device):
 		action = get_action_name(device, action)
 	return Input.is_action_just_released(action, exact_match)
 
 ## This is equivalent to Input.is_action_pressed except it will only check the relevant device.
 func is_action_pressed(device: int, action: StringName, exact_match: bool = false) -> bool:
-	if device >= 0:
+	if is_joypad_device(device):
 		action = get_action_name(device, action)
 	return Input.is_action_pressed(action, exact_match)
 
 ## Returns the name of a gamepad-specific action
 func get_action_name(device: int, action: StringName) -> StringName:
-	if device >= 0:
+	if is_joypad_device(device):
 		assert(device_actions.has(device), "Device %s has no actions. Maybe the joypad is disconnected." % device)
 		# if it says this dictionary doesn't have the key,
 		# that could mean it's an invalid action name.
@@ -174,17 +198,17 @@ func set_ui_action_device(device: int):
 	# This is necessary because this function may have messed up the UI Actions
 	# ... on a previous call
 	reset()
-	
+
 	# We are back to default behavior.
 	# So if that's what the caller wants, we're done!
 	if device == -2: return
-	
+
 	# find all ui actions and erase irrelevant events
 	for action in InputMap.get_actions():
 		# ignore non-ui-actions
-		if !is_ui_action(action): break
-		
-		if device == -1:
+		if !is_ui_action(action): continue
+
+		if is_keyboard_device(device):
 			# in this context, we want to erase all joypad events
 			for e in InputMap.action_get_events(action):
 				if _is_joypad_event(e):
@@ -196,7 +220,7 @@ func set_ui_action_device(device: int):
 				if _is_joypad_event(e):
 					e.device = device
 				else:
-					# this isn't event a joypad event, so erase it entirely
+					# this isn't even a joypad event, so erase it entirely
 					InputMap.action_erase_event(action, e)
 
 ## Returns true if the given event is a joypad event.
